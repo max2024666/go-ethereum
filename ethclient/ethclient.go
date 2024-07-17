@@ -146,6 +146,8 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 	if err := json.Unmarshal(raw, &body); err != nil {
 		return nil, err
 	}
+
+	head.BlockHash = body.Hash
 	// Quick-verify transaction and uncle lists. This mostly helps with debugging the server.
 	if head.UncleHash == types.EmptyUncleHash && len(body.UncleHashes) > 0 {
 		return nil, errors.New("server returned non-empty uncle list but block header indicates no uncles")
@@ -188,24 +190,66 @@ func (ec *Client) getBlock(ctx context.Context, method string, args ...interface
 	return types.NewBlockWithHeader(head).WithBody(txs, uncles).WithWithdrawals(body.Withdrawals), nil
 }
 
+type rpcBlockHash struct {
+	Hash common.Hash `json:"hash"`
+}
+
 // HeaderByHash returns the block header with the given hash.
 func (ec *Client) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	var head *types.Header
-	err := ec.c.CallContext(ctx, &head, "eth_getBlockByHash", hash, false)
-	if err == nil && head == nil {
-		err = ethereum.NotFound
+	var raw json.RawMessage
+	err := ec.c.CallContext(ctx, &raw, "eth_getBlockByHash", hash, false)
+
+	if err != nil {
+		return nil, err
 	}
+
+	// Decode header and transactions.
+	var head *types.Header
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, err
+	}
+	// When the block is not found, the API returns JSON null.
+	if head == nil {
+		return nil, ethereum.NotFound
+	}
+
+	//var body rpcBlock
+	var body rpcBlockHash
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, err
+	}
+
+	head.BlockHash = body.Hash
 	return head, err
 }
 
 // HeaderByNumber returns a block header from the current canonical chain. If number is
 // nil, the latest known header is returned.
 func (ec *Client) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
-	var head *types.Header
-	err := ec.c.CallContext(ctx, &head, "eth_getBlockByNumber", toBlockNumArg(number), false)
-	if err == nil && head == nil {
-		err = ethereum.NotFound
+	var raw json.RawMessage
+	err := ec.c.CallContext(ctx, &raw, "eth_getBlockByNumber", toBlockNumArg(number), false)
+
+	if err != nil {
+		return nil, err
 	}
+
+	// Decode header and transactions.
+	var head *types.Header
+	if err := json.Unmarshal(raw, &head); err != nil {
+		return nil, err
+	}
+	// When the block is not found, the API returns JSON null.
+	if head == nil {
+		return nil, ethereum.NotFound
+	}
+
+	//var body rpcBlock
+	var body rpcBlockHash
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return nil, err
+	}
+
+	head.BlockHash = body.Hash
 	return head, err
 }
 
