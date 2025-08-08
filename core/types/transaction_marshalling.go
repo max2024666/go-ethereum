@@ -482,7 +482,12 @@ func (tx *Transaction) UnmarshalJSON(input []byte) error {
 				return err
 			}
 		}
-
+	case POL_TX_TYPE:
+		var itx LegacyTx
+		inner = &itx
+		itx.R = big.NewInt(1)
+		itx.S = big.NewInt(1)
+		itx.V = big.NewInt(1)
 	default:
 		var itx LegacyTx
 		inner = &itx
